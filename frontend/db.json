@@ -1,0 +1,28 @@
+{
+  "users": [
+    {
+      "name": "hello1",
+      "email": "vish1@vish.com",
+      "password": "1234",
+      "role": "regular"
+    },
+    {
+      "name": "hello2",
+      "email": "vish2@vish.com",
+      "password": "1234",
+      "role": "regular"
+    },
+    {
+      "name": "hello3",
+      "email": "vish3@vish.com",
+      "password": "1234",
+      "role": "admin"
+    },
+    {
+      "name": "hello4",
+      "email": "vish4@vish.com",
+      "password": "1234",
+      "role": "regular"
+    }
+  ]
+}
