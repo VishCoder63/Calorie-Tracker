@@ -12,7 +12,6 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { Role } from '../../enums/role.enum';
 import { AuthGuard } from '../../guards/auth.guard';
 import {
   createFoodSchema,
@@ -20,45 +19,45 @@ import {
   updateFoodSchema,
 } from '../../schemas/food.schema';
 import { Auth, IAuth } from '../../utils/auth.decorator';
-import { Roles } from '../../utils/roles.decorator';
-import { FoodService } from '../food/food.service';
+import { FoodService } from './food.service';
 
 @Controller('foods')
 export class FoodController {
   constructor(private readonly foodservice: FoodService) {}
 
-  @Roles(Role.User, Role.Admin)
   @UseGuards(AuthGuard)
-  @HttpCode(200)
+  @HttpCode(201)
   @Post('/')
   async createFood(@Body() body, @Auth() auth: IAuth) {
     const { value, error } = await createFoodSchema.validate(body);
     if (error) throw new HttpException(error.message, 400);
     return this.foodservice.createFood(value, auth);
   }
-
-  @Roles(Role.User, Role.Admin)
   @UseGuards(AuthGuard)
+  @HttpCode(200)
   @Get()
-  async getAllFoods(@Query() queryParams: any, @Auth() auth: IAuth) {
+  async getFoods(@Query() queryParams: any, @Auth() auth: IAuth) {
     const { value, error } = await getFoodSchema.validate(queryParams);
     if (error) throw new HttpException(error.message, 400);
-    return this.foodservice.getAllFoods(value, auth);
+    return this.foodservice.getFoods(value, auth);
   }
-
-  @Roles(Role.Admin)
   @UseGuards(AuthGuard)
+  @HttpCode(200)
   @Patch(':id')
-  async updateFood(@Param('id', ParseIntPipe) id: number, @Body() body: any) {
+  async updateFood(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: any,
+    @Auth() auth: IAuth,
+  ) {
     const { value, error } = await updateFoodSchema.validate(body);
     if (error) throw new HttpException(error.message, 400);
-    return this.foodservice.updateFood(id, value);
+    return this.foodservice.updateFood(id, value, auth);
   }
 
-  @Roles(Role.Admin)
   @UseGuards(AuthGuard)
+  @HttpCode(200)
   @Delete(':id')
-  deleteFood(@Param('id') id: string) {
-    return this.foodservice.deleteFood(+id);
+  deleteFood(@Param('id') id: string, @Auth() auth: IAuth) {
+    return this.foodservice.deleteFood(+id, auth);
   }
 }

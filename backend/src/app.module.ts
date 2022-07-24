@@ -4,7 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Food } from '../src/entities/food.entity';
 import { User } from '../src/entities/user.entity';
 import { FoodModule } from '../src/modules/food/food.module';
-import { UserModule } from '../src/modules/login/user.module';
+import { UserModule } from './modules/user/user.module';
 
 @Module({
   imports: [

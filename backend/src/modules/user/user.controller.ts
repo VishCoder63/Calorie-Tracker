@@ -5,8 +5,8 @@ import {
   HttpException,
   Post,
 } from '@nestjs/common';
-import { signinSchema } from '../../schemas/user.schema';
-import { UserService } from '../login/user.service';
+import { signInSchema } from '../../schemas/user.schema';
+import { UserService } from './user.service';
 
 @Controller('users')
 export class UserController {
@@ -14,9 +14,9 @@ export class UserController {
 
   @HttpCode(200)
   @Post('/signin')
-  async signin(@Body() body: { email: string; password: string }) {
-    const { value, error } = await signinSchema.validate(body);
+  async signIn(@Body() body: { email: string; password: string }) {
+    const { value, error } = await signInSchema.validate(body);
     if (error) throw new HttpException(error.message, 400);
-    return await this.userService.signin(value);
+    return await this.userService.signIn(value);
   }
 }

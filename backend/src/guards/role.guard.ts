@@ -6,11 +6,10 @@ import {
 } from '@nestjs/common';
 import * as jwt from 'jsonwebtoken';
 import { Reflector } from '@nestjs/core';
-import { Role } from '../enums/role.enum';
-import { ROLES_KEY } from '../utils/roles.decorator';
 
 import { config } from 'dotenv';
 import { UserService } from '../modules/user/user.service';
+import { Role } from 'src/enums/role.enum';
 config();
 
 @Injectable()
@@ -28,7 +27,7 @@ export class AuthGuard implements CanActivate {
         throw new UnauthorizedException();
       }
       request.user = user;
-      return true;
+      return user.role === Role.Admin;
     } catch (e) {
       throw new UnauthorizedException(e.message);
     }

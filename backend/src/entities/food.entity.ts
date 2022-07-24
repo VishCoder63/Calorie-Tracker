@@ -7,13 +7,20 @@ export class Food extends BaseEntity {
   @Column()
   name: string;
   @Column()
-  date: Date;
+  date: string; // YYYY-MM-DD
+
   @Column()
-  month: number;
+  month: string; // YYYY-MM
+
+  @Column()
+  time: string; // HH:mm
+
   @Column()
   calorie: number;
+
   @Column()
   price: number;
+
   @Column()
   userId: number;
   @Column({ default: 0 })
