@@ -1,20 +1,28 @@
 import * as joi from 'joi';
+import * as moment from 'moment';
+
+const dateFormatValidator = (value) => {
+  const momentDate = moment(value, 'YYYY-MM-DD', true);
+  if (momentDate.isValid()) {
+    return value;
+  } else throw new Error('Invalid date format, only YYYY-MM-DD accepted');
+};
 export const createFoodSchema = joi.object({
   name: joi.string().min(3).required(),
-  datetime: joi.date().min(Date.now()).required(),
-  calorie: joi.number().min(0.1).required(),
-  price: joi.number().min(0.01).required(),
+  datetime: joi.date().max('now').required(),
+  calorie: joi.number().min(50).max(1000).required().precision(2),
+  price: joi.number().min(1).max(500).required().precision(2),
 });
 
 export const updateFoodSchema = joi.object({
   name: joi.string().min(3),
-  datetime: joi.date(),
-  calorie: joi.number().min(0.1),
-  price: joi.number().min(0.01),
+  datetime: joi.date().max('now'),
+  calorie: joi.number().min(50).max(1000).precision(2),
+  price: joi.number().min(1).max(500).precision(2),
 });
 
 export const getFoodSchema = joi.object({
   page: joi.number().min(1).default(1),
-  startDate: joi.date(),
-  endDate: joi.date().optional(),
+  startDate: joi.string().custom(dateFormatValidator),
+  endDate: joi.string().custom(dateFormatValidator),
 });

@@ -7,20 +7,29 @@ import {
 } from '@nestjs/common';
 import { Food } from '../../entities/food.entity';
 import { IAuth } from '../../utils/auth.decorator';
-import { Between } from 'typeorm';
+import { Between, In } from 'typeorm';
 import * as moment from 'moment';
 import { Role } from '../../enums/role.enum';
+import { User } from '../../entities/user.entity';
 
 @Injectable()
 export class FoodService {
+  private async validateUser(id: number, auth: IAuth) {
+    const foodItem = await Food.findOne({ where: { id } });
+    if (!foodItem) throw new BadRequestException();
+
+    if (auth.role === Role.User && foodItem.userId != auth.id)
+      throw new UnauthorizedException();
+    return foodItem;
+  }
   async getFoods({ startDate, endDate, page }, auth: IAuth) {
-    const limit = 8;
+    const limit = 5;
     if (startDate && !endDate) endDate = new Date(Date.now());
     else if (!startDate && endDate)
       throw new BadRequestException('Please enter Start date');
     else if (startDate > endDate)
       throw new BadRequestException('Start date must be less than End date');
-
+    //make one query
     const userRole = {};
     if (auth.role === Role.User) userRole['userId'] = auth.id;
 
@@ -31,12 +40,11 @@ export class FoodService {
         skip: (page - 1) * limit,
       });
     } else {
-      const start_date = moment(startDate).format('YYYY-MM-DD');
-      const end_date = moment(endDate).format('YYYY-MM-DD');
-      console.log(start_date, end_date);
+      const startDateMoment = moment(startDate).format('YYYY-MM-DD');
+      const endDateMoment = moment(endDate).format('YYYY-MM-DD');
       return Food.find({
         where: {
-          date: Between(start_date, end_date),
+          date: Between(startDateMoment, endDateMoment),
           ...userRole,
         },
         take: limit,
@@ -44,49 +52,66 @@ export class FoodService {
       });
     }
   }
+
   async createFood(body, auth: IAuth) {
-    body = {
-      ...body,
-      date: moment(body.datetime).format('YYYY-MM-DD'),
-      month: moment(body.datetime).format('YYYY-MM'),
-      time: moment(body.datetime).format('HH:mm'),
-      userId: auth.id,
-    };
     try {
       const food = new Food();
-      const { name, calorie, price, date, month, time, userId } = body;
+      const { name, calorie, price, datetime } = body;
       food.name = name;
-      food.date = date;
-      food.month = month;
-      food.time = time;
+      food.date = moment(datetime).format('YYYY-MM-DD');
+      food.month = moment(datetime).format('YYYY-MM');
+      food.time = moment(datetime).format('HH:mm');
       food.calorie = calorie;
       food.price = price;
-      food.userId = userId;
-      food.dailyTotalCalorie = 0;
-      food.monthlyTotalAmount = 0;
+      food.userId = auth.id;
       await food.save();
-      await this.dbUpdate(food, 'add');
+      await this.updateDbAfterOperation(food.userId, food.date);
       return {
-        statusCode: HttpStatus.CREATED,
-        mesage: 'Created successfully!',
+        data: food,
       };
     } catch (e) {
       return new HttpException(e.message, 400);
     }
   }
 
-  async deleteFood(id: number, auth: IAuth) {
-    const foodItem = await Food.findOne({ where: { id } });
-    if (!foodItem) throw new BadRequestException();
-
-    if (auth.role === Role.User && foodItem.userId != auth.id)
-      throw new UnauthorizedException();
-
+  async updateDbAfterOperation(userId: number, date: string) {
     try {
+      const month = moment(date).format('YYYY-MM');
+      const dailyCalSum = await Food.createQueryBuilder('food')
+        .select('SUM(food.calorie)', 'sum')
+        .where('food.date=:date', { date: date })
+        .andWhere('food.userId=:userId', { userId: userId })
+        .getRawMany();
+
+      if (dailyCalSum[0].sum != null) {
+        await Food.update(
+          { userId, date },
+          { dailyTotalCalorie: dailyCalSum[0].sum?.toFixed(2) },
+        );
+      }
+      const monthlyBudgetSum = await Food.createQueryBuilder('food')
+        .select('SUM(food.price)', 'sum')
+        .where('food.month=:month', { month: month })
+        .andWhere('food.userId=:userId', { userId: userId })
+        .getRawMany();
+
+      if (monthlyBudgetSum[0].sum != null) {
+        await Food.update(
+          { userId, month },
+          { monthlyTotalAmount: monthlyBudgetSum[0].sum?.toFixed(2) },
+        );
+      }
+    } catch (e) {
+      throw new HttpException(e.message, 400);
+    }
+  }
+
+  async deleteFood(id: number, auth: IAuth) {
+    try {
+      const foodItem = await this.validateUser(id, auth);
       await Food.delete(id);
-      await this.dbUpdate(foodItem, 'delete');
+      await this.updateDbAfterOperation(foodItem.userId, foodItem.date);
       return {
-        statusCode: HttpStatus.OK,
         message: 'Deleted successfully!',
       };
     } catch (e) {
@@ -95,6 +120,8 @@ export class FoodService {
   }
 
   async updateFood(id: number, body, auth: IAuth) {
+    const food = await this.validateUser(id, auth);
+    body = { ...food, ...body };
     try {
       if (body.datetime) {
         body = {
@@ -105,15 +132,18 @@ export class FoodService {
         };
         delete body.datetime;
       }
+      await Food.update(id, {
+        calorie: 0,
+        price: 0,
+      });
+      await this.updateDbAfterOperation(food.userId, food.date);
 
-      const food = await Food.findOne({ where: { id } });
-      if (!food) throw new BadRequestException();
-      if (auth.role === Role.User && food.userId != auth.id)
-        throw new UnauthorizedException();
-      await this.dbUpdate(food, 'delete');
       await Food.update(id, body);
-      const food2 = await Food.findOne({ where: { id } });
-      await this.dbUpdate(food2, 'add');
+      await this.updateDbAfterOperation(
+        food.userId,
+        body.date ? body.date : food.date,
+      );
+
       return {
         statusCode: HttpStatus.OK,
         message: 'Updated successfully!',
@@ -123,50 +153,45 @@ export class FoodService {
     }
   }
 
-  async dbUpdate(body, operation) {
-    const { calorie, price, date, month, userId } = body;
-    const prevFoodEnteries = await Food.find({
-      where: {
-        userId,
-        date,
-      },
-    });
+  async getStats() {
+    // if (auth.role != Role.Admin) throw new UnauthorizedException();
+    const today = moment().format('YYYY-MM-DD');
+    const thisWeekEnd = moment().subtract(6, 'days').format('YYYY-MM-DD');
+    const prevWeekEnd = moment().subtract(7, 'days').format('YYYY-MM-DD');
+    const prevWeekStart = moment().subtract(14, 'days').format('YYYY-MM-DD');
+    try {
+      const thisWeekEntries = await Food.count({
+        where: { date: Between(thisWeekEnd, today) },
+      });
 
-    prevFoodEnteries.map((entry) => {
-      operation == 'add'
-        ? (entry.dailyTotalCalorie += calorie)
-        : (entry.dailyTotalCalorie -= calorie);
-    });
-    const matchedFood = prevFoodEnteries.filter((item) => item.id == body.id);
-    if (operation === 'add') {
-      matchedFood[0].dailyTotalCalorie = prevFoodEnteries[0].dailyTotalCalorie;
-    } else {
-      if (matchedFood[0]) matchedFood[0].dailyTotalCalorie = 0;
+      const prevWeekEntries = await Food.count({
+        where: { date: Between(prevWeekStart, prevWeekEnd) },
+      });
+
+      const avgCal = await Food.createQueryBuilder('food')
+        .select('food.userId')
+        .addSelect('AVG(food.calorie)', 'avg')
+        .groupBy('food.userId')
+        .where('food.date>=:from', { from: prevWeekEnd })
+        .andWhere('food.date<=:till', { till: today })
+        .getRawMany();
+      const idArray = avgCal.map((cal) => cal.food_userId);
+      const users = await User.find({
+        where: { id: In(idArray) },
+      });
+
+      const userIDtoCal = {};
+      for (let i = 0; i < avgCal.length; i++) {
+        userIDtoCal[avgCal[i].food_userId] = avgCal[i].avg.toFixed(2);
+      }
+
+      for (const user of users) {
+        user['avgcal'] = userIDtoCal[user.id];
+        delete user.password;
+      }
+      return { thisWeekEntries, prevWeekEntries, users };
+    } catch (e) {
+      return new HttpException(e.message, HttpStatus.BAD_REQUEST);
     }
-
-    await Food.save(prevFoodEnteries);
-    const prevBudgetEnteries = await Food.find({
-      where: {
-        userId,
-        month,
-      },
-    });
-    prevBudgetEnteries.map((entry) => {
-      operation == 'add'
-        ? (entry.monthlyTotalAmount += price)
-        : (entry.monthlyTotalAmount -= price);
-    });
-
-    const matchedBudget = prevBudgetEnteries.filter(
-      (item) => item.id == body.id,
-    );
-    if (operation === 'add') {
-      matchedBudget[0].monthlyTotalAmount =
-        prevBudgetEnteries[0].monthlyTotalAmount;
-    } else {
-      if (matchedBudget[0]) matchedBudget[0].monthlyTotalAmount = 0;
-    }
-    await Food.save(prevBudgetEnteries);
-    return { prevBudgetEnteries, prevFoodEnteries };
   }
 }

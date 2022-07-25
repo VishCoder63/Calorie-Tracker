@@ -17,19 +17,33 @@ const bootstrap = async () => {
   await seedFoods();
   await app.close();
 };
+const createUser = async (body) => {
+  const user = new User();
+  for (const key in body) {
+    user[key] = body[key];
+  }
+  return user;
+};
 
 const seedUsers = async () => {
+  const usersData = [
+    {
+      email: 'user@user.com',
+      name: 'user',
+      role: Role.User,
+      password: Bcryptjs.hashSync('1234', 10),
+    },
+    {
+      email: 'admin@admin.com',
+      name: 'manager',
+      role: Role.Admin,
+      password: Bcryptjs.hashSync('1234', 10),
+    },
+  ];
   const users = [];
-
-  for (let i = 0; i < 2; i++) {
-    const u = new User();
-    u.name = faker.name.findName();
-    u.password = Bcryptjs.hashSync('1234', 10);
-    u.role = i % 3 == 0 ? Role.Admin : Role.User;
-    u.email = faker.internet.email();
-    users.push(u);
+  for (let i = 0; i < usersData.length; i++) {
+    users.push(await createUser(usersData[i]));
   }
-
   await User.save(users);
 };
 
@@ -55,8 +69,8 @@ const seedFoods = async () => {
     food.date = moment(faker.date.between(from, today)).format('YYYY-MM-DD');
     food.month = moment(food.date).format('YYYY-MM');
     food.time = moment(food.date).format('HH:mm');
-    food.calorie = faker.datatype.number({ min: 1, max: 2, precision: 1 });
-    food.price = faker.datatype.number({ min: 1, max: 2, precision: 1 });
+    food.calorie = faker.datatype.number({ min: 50, max: 1000 });
+    food.price = faker.datatype.number({ min: 1, max: 500 });
     //limiting the user id to 1 and 2
     food.userId = _.sample(idArray);
 
@@ -64,14 +78,8 @@ const seedFoods = async () => {
     food.monthlyTotalAmount = 0;
 
     await Food.save(food);
-    const { prevBudgetEnteries, prevFoodEnteries } =
-      await foodServiceObj.dbUpdate(food, 'add');
-    food.dailyTotalCalorie = prevFoodEnteries[0]
-      ? prevFoodEnteries[0].dailyTotalCalorie
-      : food.calorie;
-    food.monthlyTotalAmount = prevBudgetEnteries[0]
-      ? prevBudgetEnteries[0].monthlyTotalAmount
-      : food.price;
+    // const { prevBudgetEnteries, prevFoodEnteries } =
+    await foodServiceObj.updateDbAfterOperation(food.userId, food.date);
   }
 };
 

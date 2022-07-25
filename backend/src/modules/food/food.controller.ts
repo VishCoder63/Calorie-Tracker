@@ -3,15 +3,16 @@ import {
   Controller,
   Delete,
   Get,
-  HttpCode,
   HttpException,
   Param,
   ParseIntPipe,
-  Patch,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { Role } from '../../enums/role.enum';
+import { Roles } from '../../utils/roles.decorator';
 import { AuthGuard } from '../../guards/auth.guard';
 import {
   createFoodSchema,
@@ -19,45 +20,49 @@ import {
   updateFoodSchema,
 } from '../../schemas/food.schema';
 import { Auth, IAuth } from '../../utils/auth.decorator';
-import { FoodService } from './food.service';
+import { FoodService } from '../food/food.service';
 
 @Controller('foods')
 export class FoodController {
   constructor(private readonly foodservice: FoodService) {}
 
   @UseGuards(AuthGuard)
-  @HttpCode(201)
   @Post('/')
   async createFood(@Body() body, @Auth() auth: IAuth) {
-    const { value, error } = await createFoodSchema.validate(body);
+    const { value, error } = createFoodSchema.validate(body);
     if (error) throw new HttpException(error.message, 400);
     return this.foodservice.createFood(value, auth);
   }
+
   @UseGuards(AuthGuard)
-  @HttpCode(200)
   @Get()
   async getFoods(@Query() queryParams: any, @Auth() auth: IAuth) {
-    const { value, error } = await getFoodSchema.validate(queryParams);
+    const { value, error } = getFoodSchema.validate(queryParams);
     if (error) throw new HttpException(error.message, 400);
     return this.foodservice.getFoods(value, auth);
   }
   @UseGuards(AuthGuard)
-  @HttpCode(200)
-  @Patch(':id')
+  @Put(':id')
   async updateFood(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: any,
     @Auth() auth: IAuth,
   ) {
-    const { value, error } = await updateFoodSchema.validate(body);
+    const { value, error } = updateFoodSchema.validate(body);
     if (error) throw new HttpException(error.message, 400);
     return this.foodservice.updateFood(id, value, auth);
   }
 
   @UseGuards(AuthGuard)
-  @HttpCode(200)
   @Delete(':id')
   deleteFood(@Param('id') id: string, @Auth() auth: IAuth) {
     return this.foodservice.deleteFood(+id, auth);
+  }
+
+  @Roles(Role.Admin)
+  @UseGuards(AuthGuard)
+  @Get('stats')
+  getStats() {
+    return this.foodservice.getStats();
   }
 }
