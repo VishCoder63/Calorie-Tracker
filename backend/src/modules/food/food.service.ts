@@ -17,7 +17,9 @@ import { User } from '../../entities/user.entity';
 export class FoodService {
   private static async validateFoodId(id: number) {
     const foodItem = await Food.findOne({ where: { id } });
-    if (!foodItem) throw new BadRequestException();
+    if (!foodItem) {
+      throw new BadRequestException('Food entry not found!');
+    }
     return foodItem;
   }
 
@@ -49,33 +51,37 @@ export class FoodService {
   }
 
   async createFood(body, auth: IAuth) {
-    let foodUserId = auth.id;
-    const food = new Food();
-    const { name, calorie, price, datetime, email } = body;
-    if (email) {
-      if (auth.role === Role.Admin) {
-        const user = await User.findOne({
-          where: { email: email.toLowerCase() },
-        });
-        if (!user)
-          throw new NotFoundException('User not found with existing email');
-        foodUserId = user.id;
-      } else {
-        throw new HttpException('Only Admin can create food by email', 400);
+    try {
+      let foodUserId = auth.id;
+      const food = new Food();
+      const { name, calorie, price, datetime, email } = body;
+      if (email) {
+        if (auth.role === Role.Admin) {
+          const user = await User.findOne({
+            where: { email: email.toLowerCase() },
+          });
+          if (!user)
+            throw new NotFoundException('User not found with existing email');
+          foodUserId = user.id;
+        } else {
+          throw new HttpException('Only Admin can create food by email', 400);
+        }
       }
+      food.name = name;
+      food.date = moment(datetime).format('YYYY-MM-DD');
+      food.month = moment(datetime).format('YYYY-MM');
+      food.time = moment(datetime).format('HH:mm');
+      food.calorie = calorie;
+      food.price = price;
+      food.userId = foodUserId;
+      await food.save();
+      await this.updateDbAfterOperation(food.userId, food.date);
+      return {
+        response: { data: food, message: 'Food entry successfully made!' },
+      };
+    } catch (e) {
+      throw new HttpException(e.message, HttpStatus.BAD_REQUEST);
     }
-    food.name = name;
-    food.date = moment(datetime).format('YYYY-MM-DD');
-    food.month = moment(datetime).format('YYYY-MM');
-    food.time = moment(datetime).format('HH:mm');
-    food.calorie = calorie;
-    food.price = price;
-    food.userId = foodUserId;
-    await food.save();
-    await this.updateDbAfterOperation(food.userId, food.date);
-    return {
-      data: food,
-    };
   }
 
   async updateDbAfterOperation(userId: number, date: string) {
@@ -107,7 +113,7 @@ export class FoodService {
         );
       }
     } catch (e) {
-      throw new HttpException(e.message, 400);
+      throw new HttpException(e.message, HttpStatus.BAD_REQUEST);
     }
   }
 
@@ -117,15 +123,16 @@ export class FoodService {
       await Food.delete(id);
       await this.updateDbAfterOperation(foodItem.userId, foodItem.date);
       return {
-        message: 'Deleted successfully!',
+        response: { data: { message: 'Deleted successfully!' } },
       };
     } catch (e) {
-      return new HttpException(e.message, HttpStatus.BAD_REQUEST);
+      throw new HttpException(e.message, HttpStatus.BAD_REQUEST);
     }
   }
 
   async updateFood(id: number, body) {
     const food = await FoodService.validateFoodId(id);
+
     const prevUserId = food.userId;
     const prevDate = food.date;
 
@@ -142,15 +149,12 @@ export class FoodService {
       }
 
       await Food.update(id, body);
-      console.log(prevUserId, prevDate, body.userId, body.date);
+      // console.log(prevUserId, prevDate, body.userId, body.date);
       await this.updateDbAfterOperation(prevUserId, prevDate);
       await this.updateDbAfterOperation(body.userId, body.date);
-
-      return {
-        message: 'Updated successfully!',
-      };
+      return { response: { data: { message: 'Updated successfully!' } } };
     } catch (e) {
-      return new HttpException(e.message, HttpStatus.BAD_REQUEST);
+      throw new HttpException(e.message, HttpStatus.BAD_REQUEST);
     }
   }
 
@@ -190,9 +194,11 @@ export class FoodService {
         user['avgcal'] = userIDtoCal[user.id];
         delete user.password;
       }
-      return { thisWeekEntries, prevWeekEntries, users };
+      return {
+        response: { data: { thisWeekEntries, prevWeekEntries, users } },
+      };
     } catch (e) {
-      return new HttpException(e.message, HttpStatus.BAD_REQUEST);
+      throw new HttpException(e.message, HttpStatus.BAD_REQUEST);
     }
   }
 }

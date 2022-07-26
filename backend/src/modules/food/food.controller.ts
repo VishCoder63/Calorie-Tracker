@@ -55,7 +55,6 @@ export class FoodController {
   @UseGuards(AuthGuard)
   @Delete(':id')
   deleteFood(@Param('id') id: string) {
-    console.log('called');
     return this.foodservice.deleteFood(+id);
   }
 
