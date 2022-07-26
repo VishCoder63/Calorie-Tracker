@@ -1,4 +1,11 @@
-import { Entity, Column, PrimaryGeneratedColumn, BaseEntity } from 'typeorm';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  BaseEntity,
+  ManyToOne,
+} from 'typeorm';
+import { User } from './user.entity';
 
 @Entity()
 export class Food extends BaseEntity {
@@ -27,4 +34,7 @@ export class Food extends BaseEntity {
   dailyTotalCalorie: number;
   @Column({ default: 0 })
   monthlyTotalAmount: number;
+
+  @ManyToOne(() => User)
+  user: User;
 }

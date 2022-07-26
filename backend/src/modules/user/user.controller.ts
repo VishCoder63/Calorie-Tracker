@@ -9,6 +9,7 @@ export class UserController {
   @Post('/signin')
   async signIn(@Body() body: { email: string; password: string }) {
     const { value, error } = signInSchema.validate(body);
+
     if (error) throw new HttpException(error.message, 400);
     return await this.userService.signIn(value);
   }

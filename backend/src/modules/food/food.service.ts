@@ -3,6 +3,7 @@ import {
   HttpException,
   HttpStatus,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { Food } from '../../entities/food.entity';
@@ -14,14 +15,12 @@ import { User } from '../../entities/user.entity';
 
 @Injectable()
 export class FoodService {
-  private async validateUser(id: number, auth: IAuth) {
+  private static async validateFoodId(id: number) {
     const foodItem = await Food.findOne({ where: { id } });
     if (!foodItem) throw new BadRequestException();
-
-    if (auth.role === Role.User && foodItem.userId != auth.id)
-      throw new UnauthorizedException();
     return foodItem;
   }
+
   async getFoods({ startDate, endDate, page }, auth: IAuth) {
     const limit = 5;
     if (startDate && !endDate) endDate = new Date(Date.now());
@@ -30,49 +29,53 @@ export class FoodService {
     else if (startDate > endDate)
       throw new BadRequestException('Start date must be less than End date');
     //make one query
-    const userRole = {};
-    if (auth.role === Role.User) userRole['userId'] = auth.id;
+    const whereClause: any = {};
 
-    if (!startDate && !endDate) {
-      return Food.find({
-        where: { ...userRole },
-        take: limit,
-        skip: (page - 1) * limit,
-      });
-    } else {
+    if (auth.role === Role.User) whereClause.userId = auth.id;
+
+    if (startDate || endDate) {
       const startDateMoment = moment(startDate).format('YYYY-MM-DD');
       const endDateMoment = moment(endDate).format('YYYY-MM-DD');
+      whereClause.date = Between(startDateMoment, endDateMoment);
       console.log(startDateMoment, endDateMoment);
-      return Food.find({
-        where: {
-          date: Between(startDateMoment, endDateMoment),
-          ...userRole,
-        },
-        take: limit,
-        skip: (page - 1) * limit,
-      });
     }
+
+    return Food.find({
+      where: whereClause,
+      take: limit,
+      skip: (page - 1) * limit,
+      relations: { user: true },
+    });
   }
 
   async createFood(body, auth: IAuth) {
-    try {
-      const food = new Food();
-      const { name, calorie, price, datetime } = body;
-      food.name = name;
-      food.date = moment(datetime).format('YYYY-MM-DD');
-      food.month = moment(datetime).format('YYYY-MM');
-      food.time = moment(datetime).format('HH:mm');
-      food.calorie = calorie;
-      food.price = price;
-      food.userId = auth.id;
-      await food.save();
-      await this.updateDbAfterOperation(food.userId, food.date);
-      return {
-        data: food,
-      };
-    } catch (e) {
-      return new HttpException(e.message, 400);
+    let foodUserId = auth.id;
+    const food = new Food();
+    const { name, calorie, price, datetime, email } = body;
+    if (email) {
+      if (auth.role === Role.Admin) {
+        const user = await User.findOne({
+          where: { email: email.toLowerCase() },
+        });
+        if (!user)
+          throw new NotFoundException('User not found with existing email');
+        foodUserId = user.id;
+      } else {
+        throw new HttpException('Only Admin can create food by email', 400);
+      }
     }
+    food.name = name;
+    food.date = moment(datetime).format('YYYY-MM-DD');
+    food.month = moment(datetime).format('YYYY-MM');
+    food.time = moment(datetime).format('HH:mm');
+    food.calorie = calorie;
+    food.price = price;
+    food.userId = foodUserId;
+    await food.save();
+    await this.updateDbAfterOperation(food.userId, food.date);
+    return {
+      data: food,
+    };
   }
 
   async updateDbAfterOperation(userId: number, date: string) {
@@ -90,6 +93,7 @@ export class FoodService {
           { dailyTotalCalorie: dailyCalSum[0].sum?.toFixed(2) },
         );
       }
+
       const monthlyBudgetSum = await Food.createQueryBuilder('food')
         .select('SUM(food.price)', 'sum')
         .where('food.month=:month', { month: month })
@@ -107,9 +111,9 @@ export class FoodService {
     }
   }
 
-  async deleteFood(id: number, auth: IAuth) {
+  async deleteFood(id: number) {
     try {
-      const foodItem = await this.validateUser(id, auth);
+      const foodItem = await FoodService.validateFoodId(id);
       await Food.delete(id);
       await this.updateDbAfterOperation(foodItem.userId, foodItem.date);
       return {
@@ -120,8 +124,11 @@ export class FoodService {
     }
   }
 
-  async updateFood(id: number, body, auth: IAuth) {
-    const food = await this.validateUser(id, auth);
+  async updateFood(id: number, body) {
+    const food = await FoodService.validateFoodId(id);
+    const prevUserId = food.userId;
+    const prevDate = food.date;
+
     body = { ...food, ...body };
     try {
       if (body.datetime) {
@@ -133,20 +140,13 @@ export class FoodService {
         };
         delete body.datetime;
       }
-      await Food.update(id, {
-        calorie: 0,
-        price: 0,
-      });
-      await this.updateDbAfterOperation(food.userId, food.date);
 
       await Food.update(id, body);
-      await this.updateDbAfterOperation(
-        food.userId,
-        body.date ? body.date : food.date,
-      );
+      console.log(prevUserId, prevDate, body.userId, body.date);
+      await this.updateDbAfterOperation(prevUserId, prevDate);
+      await this.updateDbAfterOperation(body.userId, body.date);
 
       return {
-        statusCode: HttpStatus.OK,
         message: 'Updated successfully!',
       };
     } catch (e) {

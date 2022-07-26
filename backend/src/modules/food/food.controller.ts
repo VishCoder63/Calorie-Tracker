@@ -41,22 +41,22 @@ export class FoodController {
     if (error) throw new HttpException(error.message, 400);
     return this.foodservice.getFoods(value, auth);
   }
+
+  @Roles(Role.Admin)
   @UseGuards(AuthGuard)
   @Put(':id')
-  async updateFood(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() body: any,
-    @Auth() auth: IAuth,
-  ) {
+  async updateFood(@Param('id', ParseIntPipe) id: number, @Body() body: any) {
     const { value, error } = updateFoodSchema.validate(body);
     if (error) throw new HttpException(error.message, 400);
-    return this.foodservice.updateFood(id, value, auth);
+    return this.foodservice.updateFood(id, value);
   }
 
+  @Roles(Role.Admin)
   @UseGuards(AuthGuard)
   @Delete(':id')
-  deleteFood(@Param('id') id: string, @Auth() auth: IAuth) {
-    return this.foodservice.deleteFood(+id, auth);
+  deleteFood(@Param('id') id: string) {
+    console.log('called');
+    return this.foodservice.deleteFood(+id);
   }
 
   @Roles(Role.Admin)

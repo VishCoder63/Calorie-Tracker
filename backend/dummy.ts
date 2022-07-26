@@ -11,10 +11,20 @@ import { FoodService } from '../backend/src/modules/food/food.service';
 
 const bootstrap = async () => {
   const app = await NestFactory.createApplicationContext(AppModule);
-  await User.delete({});
   await Food.delete({});
+  await User.delete({});
   await seedUsers();
   await seedFoods();
+  const food = await Food.findOne({ where: {}, relations: { user: true } });
+  const user = await User.findOne({ where: {} });
+  const userWithPassword = await User.findOne({
+    where: {},
+    select: ['password', 'id', 'email', 'role'],
+  });
+
+  console.log(user);
+  console.log(userWithPassword);
+  console.log(food);
   await app.close();
 };
 const createUser = async (body) => {

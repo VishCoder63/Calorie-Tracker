@@ -18,6 +18,7 @@ export const createFoodSchema = joi.object({
   datetime: joi.date().max('now').required(),
   calorie: joi.number().min(50).max(1000).required().precision(2),
   price: joi.number().min(1).max(500).required().precision(2),
+  email: joi.string().email(),
 });
 
 export const updateFoodSchema = joi.object({

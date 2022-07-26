@@ -8,7 +8,10 @@ import { Role } from '../../enums/role.enum';
 @Injectable()
 export class UserService {
   async signIn({ email, password }: { email: string; password: string }) {
-    const user = await User.findOne({ where: { email } });
+    const user = await User.findOne({
+      where: { email },
+      select: ['password', 'id', 'email', 'role', 'name'],
+    });
     if (!user) throw new NotFoundException('Invalid credentials');
     if (!bcrypt.compareSync(password, user.password))
       throw new NotFoundException('Invalid credentials');
@@ -22,7 +25,9 @@ export class UserService {
   }
 
   async findById(id: number): Promise<User> {
-    return await User.findOne({ where: { id } });
+    return await User.findOne({
+      where: { id },
+    });
   }
 
   async inviteFriend({ email, name }: { email: string; name: string }) {
