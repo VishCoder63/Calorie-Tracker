@@ -42,6 +42,7 @@ export class FoodService {
     } else {
       const startDateMoment = moment(startDate).format('YYYY-MM-DD');
       const endDateMoment = moment(endDate).format('YYYY-MM-DD');
+      console.log(startDateMoment, endDateMoment);
       return Food.find({
         where: {
           date: Between(startDateMoment, endDateMoment),
