@@ -3,22 +3,30 @@ import React, { useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { userContext } from "../contexts/user.context";
+import { loginService } from "../services/login.service";
 import styles from "./styles/signin.module.css";
+import { useCookies } from "react-cookie";
+import { openNotification } from "../utils/antNotification";
 
 const Signin = () => {
   const navigate = useNavigate();
-  const { onLogin } = useContext(userContext);
-
+  const { loggedInUser, setLoggedInUser } = useContext(userContext);
+  const [cookies, setCookie, removeCookie] = useCookies(["token", "user"]);
   const onFinish = async (values) => {
-    
-    onLogin({ email: values.username, password: values.password })
+    await loginService({ email: values.username, password: values.password })
       .then((res) => {
-        toast.success("Logged in successfully!");
+        const { token, ...user } = res.data;
+        setLoggedInUser(user);
+        setCookie("user", user);
+        setCookie("token", token);
+
+        openNotification("Logged in successfully!");
+        navigate("/foods");
       })
       .catch((err) => {
-        toast.error("Invalid credentials");
+        console.log(err);
+        openNotification(err.response?.data?.message);
       });
-    // console.log("Success:", values);
   };
 
   const onFinishFailed = ({ errorFields }) => {

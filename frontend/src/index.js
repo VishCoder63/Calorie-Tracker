@@ -6,12 +6,14 @@ import reportWebVitals from "./reportWebVitals";
 import "antd/dist/antd.css";
 import { BrowserRouter } from "react-router-dom";
 import { RoutesMain } from "./routes/RoutesMain";
+import { DateTimePicker } from "./components/DateTimePicker";
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
   <React.StrictMode>
     <BrowserRouter>
-      <RoutesMain />
+      <App />
+      {/* <DateTimePicker /> */}
     </BrowserRouter>
   </React.StrictMode>
 );
