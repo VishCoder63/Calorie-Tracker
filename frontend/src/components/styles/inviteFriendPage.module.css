@@ -1,7 +1,6 @@
 .mainClass {
   border: 1px solid rgb(195, 190, 190);
   width: 30%;
-  /* height: 50vh; */
   padding-left: 5rem;
   padding-top: 3.5rem;
   margin: 5rem auto;
@@ -12,4 +11,7 @@
   margin-right: 1rem;
 }
 
-
+.tableStyle {
+  /* border: 1px solid red; */
+  margin: 2rem;
+}

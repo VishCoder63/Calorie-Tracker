@@ -1,20 +1,28 @@
-import { Button, Form, Input, Table } from "antd";
-import FormItem from "antd/lib/form/FormItem";
+import { Alert, Button, DatePicker, Form, Input, Popover, Table } from "antd";
+
 import { useContext, useEffect, useState } from "react";
 import { useCookies } from "react-cookie";
-import { useNavigate } from "react-router-dom";
-import { toast } from "react-toastify";
+
 import { userContext } from "../contexts/user.context";
 import { FoodService } from "../services/foods.service";
 import { openNotification } from "../utils/antNotification";
 import moment from "moment";
-import { useForm } from "antd/lib/form/Form";
+import { Role } from "../enums/roles.enum.ts";
+import { MdMoneyOff } from "react-icons/md";
+import { ImWarning } from "react-icons/im";
+import { BsCurrencyDollar } from "react-icons/bs";
 
-export const FoodsList = () => {
+export const FoodsList = ({ dateFilterObject }) => {
   const [cookies, setCookie, removeCookie] = useCookies(["token", "user"]);
   const [editingRow, setEditingRow] = useState(null);
+  const [isCreatingNewRow, setisCreatingNewRow] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [limit, setLimit] = useState(1);
   const [form] = Form.useForm();
   const [foods, setFoods] = useState([]);
+
+  const { loggedInUser } = useContext(userContext);
 
   const columns = [
     {
@@ -38,7 +46,7 @@ export const FoodsList = () => {
                 },
               ]}
             >
-              <Input />
+              <Input placeholder="enter food's name" />
             </Form.Item>
           );
         } else return <p>{text}</p>;
@@ -60,7 +68,7 @@ export const FoodsList = () => {
                 },
               ]}
             >
-              <Input />
+              <DatePicker showTime />
             </Form.Item>
           );
         } else return <p>{text}</p>;
@@ -68,7 +76,7 @@ export const FoodsList = () => {
     },
     {
       key: 4,
-      title: "Calorie",
+      title: "Calorie(cal)",
       dataIndex: "calorie",
       render: (text, record) => {
         if (record.id === editingRow) {
@@ -82,15 +90,33 @@ export const FoodsList = () => {
                 },
               ]}
             >
-              <Input />
+              <Input placeholder="enter the calorie value" />
             </Form.Item>
           );
-        } else return <p>{text}</p>;
+        } else
+          return (
+            <>
+              <p>{text}</p>
+              {/* <p>{record.dailyTotalCalorie}</p> */}
+              {record.dailyTotalCalorie > 2100 && (
+                <Popover
+                  content={"Daily Calorie limit crossed 2100!!"}
+                  color="#fff2c7"
+                >
+                  <ImWarning
+                    size={15}
+                    color="red"
+                    style={{ marginLeft: "5%" }}
+                  />
+                </Popover>
+              )}
+            </>
+          );
       },
     },
     {
       key: 5,
-      title: "Price",
+      title: "Price($)",
       dataIndex: "price",
       render: (text, record) => {
         if (record.id === editingRow) {
@@ -104,32 +130,71 @@ export const FoodsList = () => {
                 },
               ]}
             >
-              <Input />
+              <Input placeholder="enter price in dollars" />
+            </Form.Item>
+          );
+        } else
+          return (
+            <>
+              <span>{text}</span>
+              <div>
+                {record.monthlyTotalAmount > 1000 && (
+                  <Popover
+                    content={"Monthly budget exceeded $1000!!"}
+                    color="#fff2c7"
+                  >
+                    <MdMoneyOff
+                      size={17}
+                      color="red"
+                      style={{ marginLeft: "5%" }}
+                    />
+                  </Popover>
+                )}
+              </div>
+            </>
+          );
+      },
+    },
+    {
+      key: 6,
+      title: "Created by",
+      dataIndex: "email",
+      render: (text, record) => {
+        if (record.id === editingRow && isCreatingNewRow) {
+          return (
+            <Form.Item
+              name="email"
+              rules={[
+                {
+                  required: false,
+                  message: "Please enter the email id",
+                },
+              ]}
+            >
+              <Input
+                disabled={loggedInUser.role === Role.User}
+                placeholder="enter email id here"
+              />
             </Form.Item>
           );
         } else return <p>{text}</p>;
       },
     },
     {
-      key: 6,
-      title: "Created by",
-      dataIndex: "createdBy",
-    },
-    {
-      key: 8,
+      key: 7,
       title: "Actions",
       render: (_, record) => {
         return (
           <>
-            {editingRow == null && (
+            {editingRow === null && (
               <Button
+                type="link"
                 onClick={() => {
                   setEditingRow(record.id);
-                  // console.log("r", record);
 
                   form.setFieldsValue({
                     name: record.name,
-                    datetime: record.datetime,
+                    datetime: moment(record.datetime),
                     calorie: record.calorie,
                     price: record.price,
                   });
@@ -138,18 +203,25 @@ export const FoodsList = () => {
                 Edit
               </Button>
             )}
-
-            {editingRow != null && <Button htmlType="submit">Save</Button>}
-
-            <Button onClick={() => deleteFood(record)}>Delete</Button>
+            {!isCreatingNewRow && (
+              <Button type="link" onClick={() => deleteFood(record)}>
+                Delete
+              </Button>
+            )}
           </>
         );
       },
     },
-  ];
-
-  // const logged = GenUtil.getLoggedInUser();
-  const navigate = useNavigate();
+  ].filter((column) => {
+    if (loggedInUser.role === Role.User) {
+      return column.key !== 7 && column.key !== 6;
+    } else if (
+      loggedInUser.role === Role.Admin &&
+      (isCreatingNewRow || editingRow != null)
+    )
+      return column.key !== 7;
+    else return true;
+  });
 
   const helper = (data) => {
     const newData = [];
@@ -165,16 +237,14 @@ export const FoodsList = () => {
         monthlyTotalAmount,
         user,
       } = data[i];
-      // const color = bike.color;
-      // const model = bike.model;
-      // const name = user.name;
+      // const dateTime = new Date(date + " " + time);
       const newObj = {
         id,
         name,
-        datetime: moment(date + " " + time).format(),
+        datetime: date + " " + time,
         calorie,
         price,
-        createdBy: user.name,
+        email: user.email,
         dailyTotalCalorie,
         monthlyTotalAmount,
         user,
@@ -185,14 +255,21 @@ export const FoodsList = () => {
   };
 
   useEffect(() => {
-    getFoods();
-  }, []);
-  const getFoods = async () => {
+    getFoods({ page: currentPage, ...dateFilterObject });
+  }, [currentPage, dateFilterObject]);
+  const getFoods = async (filterObj) => {
     try {
-      const data = await FoodService.getFoods(cookies.token);
-      if (data.data) {
-        const tableSettableData = helper(data.data);
+      const data = await FoodService.getFoods(
+        cookies.token,
+        loggedInUser,
+        filterObj
+      );
+      console.log(data.data);
+      if (data.data.results) {
+        const tableSettableData = helper(data.data.results);
         setFoods(tableSettableData);
+        setTotalPages(data.data.count);
+        setLimit(data.data.limit);
       } else {
         throw new Error({
           response: { data: { message: "Error while fetching food entries!" } },
@@ -202,15 +279,12 @@ export const FoodsList = () => {
       openNotification(e.message);
     }
   };
-  // const RateBike = (record) => {
-  //   const id = record.id;
-  //   navigate(`/reservation/rating/${id}`);
-  // };
+
   const deleteFood = async (record) => {
     try {
       await FoodService.deleteFood(record.id, cookies.token);
       openNotification("Deleted successfully!!");
-      getFoods();
+      getFoods({ page: currentPage, ...dateFilterObject });
     } catch (e) {
       openNotification(e.response.data.message);
     }
@@ -219,21 +293,97 @@ export const FoodsList = () => {
     try {
       await FoodService.updateFood(id, values, cookies.token);
       openNotification("Updated successfully!!");
-      getFoods();
+      getFoods({ page: currentPage, ...dateFilterObject });
+    } catch (e) {
+      openNotification(e.response.data.message);
+    }
+  };
+  const addFood = async (values) => {
+    try {
+      await FoodService.addFood(values, cookies.token);
+      openNotification("New Food entry added successfully!!");
+      getFoods({ page: currentPage, ...dateFilterObject });
+      setEditingRow(null);
+      setisCreatingNewRow(!isCreatingNewRow);
     } catch (e) {
       openNotification(e.response.data.message);
     }
   };
   const handleOnFinish = async (values) => {
+    values = { ...values, datetime: values.datetime.format() };
     console.log(values, editingRow);
-    console.log("updated");
-    await updateFood(editingRow, values);
-    setEditingRow(null);
+    if (!isCreatingNewRow) {
+      console.log("updated", isCreatingNewRow);
+      await updateFood(editingRow, values);
+      setEditingRow(null);
+    } else {
+      console.log("creation");
+      await addFood(values);
+    }
   };
+  const handleAdd = async () => {
+    setFoods((prev) => {
+      return [{ id: undefined }, ...prev];
+    });
+    form.setFieldsValue({
+      name: "",
+      datetime: "",
+      calorie: "",
+      price: "",
+    });
+    setEditingRow(undefined);
+    setisCreatingNewRow(true);
+  };
+  const handleCancel = async () => {
+    // console.log("Called");
+    getFoods({ page: currentPage, ...dateFilterObject });
+    setEditingRow(null);
+    setisCreatingNewRow(false);
+  };
+
   return (
     <>
-      <Form form={form} onFinish={handleOnFinish}>
-        <Table columns={columns} dataSource={foods}></Table>
+      <Form
+        form={form}
+        onFinish={handleOnFinish}
+        style={{ margin: "0 2rem 10rem 2rem" }}
+      >
+        {currentPage === 1 && !isCreatingNewRow && editingRow == null && (
+          <Button
+            disabled={dateFilterObject.startDate !== undefined} //cannot add when filters being applied
+            type="primary"
+            onClick={handleAdd}
+            style={{ margin: 10 }}
+          >
+            Add a Row
+          </Button>
+        )}
+
+        {(isCreatingNewRow || editingRow !== null) && (
+          <>
+            <Button type="primary" htmlType="submit" style={{ margin: 10 }}>
+              Save Row
+            </Button>
+            <Button
+              type="primary"
+              style={{ margin: 10 }}
+              onClick={handleCancel}
+            >
+              Cancel
+            </Button>
+          </>
+        )}
+
+        <Table
+          columns={columns}
+          dataSource={foods}
+          pagination={{
+            pageSize: limit,
+            current: currentPage,
+            onChange: (e) => setCurrentPage(e),
+            total: totalPages,
+          }}
+        ></Table>
       </Form>
     </>
   );

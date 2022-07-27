@@ -1,32 +1,65 @@
-import logo from "./logo.svg";
 import "./App.css";
 import { Signin } from "./components/Signin";
-import { ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
-import { Outlet, Route, Routes } from "react-router-dom";
-import { userContext } from "./contexts/user.context";
-import { useContext, useEffect, useState } from "react";
-import axios from "axios";
 import { Navbar } from "./components/Navbar";
-import { Signup } from "./components/Signup";
-import { FoodsList } from "./components/FoodsList";
-import { Forbidden } from "./components/Forbidden";
-import { useCookies } from "react-cookie";
-function App() {
-  const [loggedInUser, setLoggedInUser] = useState(null);
-  const [cookies, setCookie, removeCookie] = useCookies(["token", "user"]);
 
+import "react-toastify/dist/ReactToastify.css";
+import { Route, Routes } from "react-router-dom";
+import { userContext } from "./contexts/user.context";
+import { useEffect, useState } from "react";
+
+import { useCookies } from "react-cookie";
+import { FoodEntriesPage } from "./pages/FoodEntriesPage";
+import { StatsPage } from "./pages/StatsPage";
+import { InviteFriendPage } from "./pages/InviteFriendPage";
+import { Auth } from "./components/Auth";
+import { Role } from "./enums/roles.enum.ts";
+import { PageNotFound } from "./components/PageNotFound";
+function App() {
+  const [cookies, setCookie, removeCookie] = useCookies(["token", "user"]);
+  const [loggedInUser, setLoggedInUser] = useState(cookies.user);
   useEffect(() => {
     if (cookies.user) setLoggedInUser(cookies.user);
-  }, [cookies.token]);
+  }, []);
 
   return (
     <userContext.Provider value={{ loggedInUser, setLoggedInUser }}>
+      <Navbar />
       <Routes>
         <Route path="/signin" element={<Signin />} />
-        <Route path="/foods" element={<FoodsList />} />
-        {/* <Route path="/stats" element={<UsersLis />} /> */}
-        <Route path="*" element={<Forbidden />} />
+        <Route
+          path="/"
+          element={
+            <Auth>
+              <FoodEntriesPage />
+            </Auth>
+          }
+        >
+          <Route
+            path="foods"
+            element={
+              <Auth>
+                <FoodEntriesPage />
+              </Auth>
+            }
+          />
+        </Route>
+        <Route
+          path="/stats"
+          element={
+            <Auth allowedRole={Role.Admin}>
+              <StatsPage />
+            </Auth>
+          }
+        />
+        <Route
+          path="/invite"
+          element={
+            <Auth>
+              <InviteFriendPage />
+            </Auth>
+          }
+        />
+        <Route path="*" element={<PageNotFound />} />
       </Routes>
     </userContext.Provider>
   );

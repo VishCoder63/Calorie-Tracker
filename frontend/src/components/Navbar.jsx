@@ -1,33 +1,46 @@
 import { Button } from "antd";
 import React, { useContext } from "react";
+import { useCookies } from "react-cookie";
 import { Link, useNavigate } from "react-router-dom";
 import { userContext } from "../contexts/user.context";
 import styles from "./styles/navbar.module.css";
+import { Role } from "../enums/roles.enum.ts";
 
-const Navbar = () => {
+export const Navbar = () => {
+  const [cookies, setCookie, removeCookie] = useCookies(["token", "user"]);
+
   const navigate = useNavigate();
-  const { onLogout } = useContext(userContext);
+  const { loggedInUser, setLoggedInUser } = useContext(userContext);
 
   return (
-    <div className={styles.navbarContainer}>
-      <ul className={styles.navlist}>
-        <li>
-          <Link to="/users">All users</Link>
-        </li>
-        <li>About</li>
-        <li>Contact Us</li>
-      </ul>
-      <Button
-        type="primary"
-        onClick={() => {
-          onLogout();
-          navigate("/signup");
-        }}
-      >
-        Signout
-      </Button>
-    </div>
+    loggedInUser && (
+      <div className={styles.navbarContainer}>
+        <ul className={styles.navlist}>
+          <li>
+            <Link to="/">Home</Link>
+          </li>
+          {loggedInUser && loggedInUser.role === Role.Admin && (
+            <li>
+              <Link to="/stats">View Stats</Link>
+            </li>
+          )}
+          <li>
+            <Link to="/invite">Invite a Friend</Link>
+          </li>
+        </ul>
+        <Button
+          type="primary"
+          onClick={() => {
+            setLoggedInUser(null);
+            removeCookie("user");
+            removeCookie("token");
+            console.log("after del: ", cookies);
+            navigate("/signin");
+          }}
+        >
+          Signout
+        </Button>
+      </div>
+    )
   );
 };
-
-export { Navbar };

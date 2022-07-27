@@ -7,3 +7,10 @@ export const loginService = async ({ email, password }) => {
     password,
   });
 };
+
+export const inviteFriend = async ({ name, email }) => {
+  return axios.post(`${BASE_URL}/users/invite`, {
+    email,
+    name,
+  });
+};

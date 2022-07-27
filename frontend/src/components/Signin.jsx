@@ -3,7 +3,7 @@ import React, { useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { userContext } from "../contexts/user.context";
-import { loginService } from "../services/login.service";
+import { loginService } from "../services/user.service";
 import styles from "./styles/signin.module.css";
 import { useCookies } from "react-cookie";
 import { openNotification } from "../utils/antNotification";
@@ -17,11 +17,12 @@ const Signin = () => {
       .then((res) => {
         const { token, ...user } = res.data;
         setLoggedInUser(user);
+
         setCookie("user", user);
         setCookie("token", token);
 
         openNotification("Logged in successfully!");
-        navigate("/foods");
+        navigate("/");
       })
       .catch((err) => {
         console.log(err);
@@ -99,9 +100,6 @@ const Signin = () => {
             className={styles.submitButton}
           >
             Login
-          </Button>
-          <Button type="primary" onClick={() => navigate("/signup")}>
-            New user? Signup
           </Button>
         </Form.Item>
       </Form>

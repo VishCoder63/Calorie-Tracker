@@ -1,15 +1,14 @@
-export const Forbidden = () => {
+export const PageNotFound = () => {
   return (
     <div
       style={{
-        border: "1px solid red",
         display: "flex",
         minHeight: "100vh",
         justifyContent: "center",
         alignItems: "center",
       }}
     >
-      <h1>Forbidden Page 404!</h1>;
+      <h1>Page not found 404!</h1>;
     </div>
   );
 };
