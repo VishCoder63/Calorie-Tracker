@@ -42,11 +42,11 @@ export class UserService {
       newUser.name = name;
       newUser.role = Role.User;
       await User.save(newUser);
-      const loggedInUser = await this.signIn({
-        email: email,
-        password: randWord,
-      });
-      return { user: { ...loggedInUser, password: randWord } };
+      // const loggedInUser = await this.signIn({
+      //   email: email,
+      //   password: randWord,
+      // });
+      return { user: { ...newUser, password: randWord } };
     } catch (e) {
       throw new HttpException(e.message, 400);
     }

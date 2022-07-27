@@ -42,12 +42,20 @@ export class FoodService {
       console.log(startDateMoment, endDateMoment);
     }
 
-    return Food.find({
+    const results = await Food.find({
       where: whereClause,
       take: limit,
       skip: (page - 1) * limit,
       relations: { user: true },
     });
+    const count = await Food.count({
+      where: whereClause,
+    });
+    return {
+      results,
+      count,
+      limit,
+    };
   }
 
   async createFood(body, auth: IAuth) {

@@ -21,10 +21,6 @@ const bootstrap = async () => {
     where: {},
     select: ['password', 'id', 'email', 'role'],
   });
-
-  console.log(user);
-  console.log(userWithPassword);
-  console.log(food);
   await app.close();
 };
 const createUser = async (body) => {
@@ -63,7 +59,7 @@ const seedFoods = async () => {
 
   const users = await User.find();
   const idArray = users.map((user) => user.id);
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 20; i++) {
     const food = new Food();
     const from = today.setDate(today.getDate() - Math.random() * 5);
 
@@ -79,8 +75,8 @@ const seedFoods = async () => {
     food.date = moment(faker.date.between(from, today)).format('YYYY-MM-DD');
     food.month = moment(food.date).format('YYYY-MM');
     food.time = moment(food.date).format('HH:mm');
-    food.calorie = faker.datatype.number({ min: 50, max: 1000 });
-    food.price = faker.datatype.number({ min: 1, max: 500 });
+    food.calorie = faker.datatype.number({ min: 1400, max: 2500 });
+    food.price = faker.datatype.number({ min: 100, max: 300 });
     //limiting the user id to 1 and 2
     food.userId = _.sample(idArray);
 
