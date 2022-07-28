@@ -61,7 +61,6 @@ const seedFoods = async () => {
   const idArray = users.map((user) => user.id);
   for (let i = 0; i < 20; i++) {
     const food = new Food();
-    const from = today.setDate(today.getDate() - Math.random() * 5);
 
     food.name = _.sample([
       'Burger',
@@ -72,11 +71,14 @@ const seedFoods = async () => {
       'Pasta',
       'Roti',
     ]);
-    food.date = moment(faker.date.between(from, today)).format('YYYY-MM-DD');
+    food.date = moment()
+      .subtract(Math.random() * 300, 'hours')
+      .format('YYYY-MM-DD HH:mm');
     food.month = moment(food.date).format('YYYY-MM');
     food.time = moment(food.date).format('HH:mm');
-    food.calorie = faker.datatype.number({ min: 1400, max: 2500 });
-    food.price = faker.datatype.number({ min: 100, max: 300 });
+    food.date = moment(food.date).format('YYYY-MM-DD');
+    food.calorie = faker.datatype.number({ min: 1200, max: 2000 });
+    food.price = faker.datatype.number({ min: 50, max: 200 });
     //limiting the user id to 1 and 2
     food.userId = _.sample(idArray);
 

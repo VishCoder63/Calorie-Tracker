@@ -10,7 +10,7 @@ const dateFormatValidator = (value) => {
     return value;
   } else
     throw new Error(
-      'Invalid date format, only YYYY-MM-DD or YYYY-MM-DDHH:mm:ss accepted',
+      'Invalid date format, only YYYY-MM-DD or YYYY-MM-DD HH:mm:ss accepted',
     );
 };
 export const createFoodSchema = joi.object({

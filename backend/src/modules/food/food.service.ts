@@ -24,7 +24,7 @@ export class FoodService {
   }
 
   async getFoods({ startDate, endDate, page }, auth: IAuth) {
-    const limit = 5;
+    const limit = 8;
     if (startDate && !endDate) endDate = new Date(Date.now());
     else if (!startDate && endDate)
       throw new BadRequestException('Please enter Start date');
@@ -39,7 +39,7 @@ export class FoodService {
       const startDateMoment = moment(startDate).format('YYYY-MM-DD');
       const endDateMoment = moment(endDate).format('YYYY-MM-DD');
       whereClause.date = Between(startDateMoment, endDateMoment);
-      console.log(startDateMoment, endDateMoment);
+      // console.log(startDateMoment, endDateMoment);
     }
 
     const results = await Food.find({
@@ -47,6 +47,7 @@ export class FoodService {
       take: limit,
       skip: (page - 1) * limit,
       relations: { user: true },
+      order: { date: 'DESC', time: 'DESC' },
     });
     const count = await Food.count({
       where: whereClause,
@@ -75,7 +76,7 @@ export class FoodService {
           throw new HttpException('Only Admin can create food by email', 400);
         }
       }
-      food.name = name;
+      food.name = name.trim();
       food.date = moment(datetime).format('YYYY-MM-DD');
       food.month = moment(datetime).format('YYYY-MM');
       food.time = moment(datetime).format('HH:mm');
@@ -181,29 +182,56 @@ export class FoodService {
         where: { date: Between(prevWeekStart, prevWeekEnd) },
       });
 
-      const avgCal = await Food.createQueryBuilder('food')
-        .select('food.userId')
-        .addSelect('AVG(food.calorie)', 'avg')
-        .groupBy('food.userId')
-        .where('food.date>=:from', { from: prevWeekEnd })
+      // const avgCal = await Food.createQueryBuilder('food')
+      //   .select('food.userId')
+      //   .addSelect('AVG(food.calorie)', 'avg')
+      //   .groupBy('food.userId')
+      //   .where('food.date>=:from', { from: prevWeekEnd })
+      //   .andWhere('food.date<=:till', { till: today })
+      //   .getRawMany();
+      // const idArray = avgCal.map((cal) => cal.food_userId);
+      // const users = await User.find({
+      //   where: { id: In(idArray) },
+      // });
+
+      const calsLastWeek = await Food.createQueryBuilder('food')
+        .select('SUM(food.calorie)', 'sum')
+        .where('food.date>=:from', { from: thisWeekEnd })
         .andWhere('food.date<=:till', { till: today })
         .getRawMany();
-      const idArray = avgCal.map((cal) => cal.food_userId);
-      const users = await User.find({
-        where: { id: In(idArray) },
-      });
+      const countOfDistinctUsers = await Food.createQueryBuilder('food')
+        .select('DISTINCT(food.userId)', 'ids')
+        .where('food.date>=:from', { from: thisWeekEnd })
+        .andWhere('food.date<=:till', { till: today })
+        .getRawMany();
 
-      const userIDtoCal = {};
-      for (let i = 0; i < avgCal.length; i++) {
-        userIDtoCal[avgCal[i].food_userId] = avgCal[i].avg.toFixed(2);
-      }
+      const avg = (calsLastWeek[0].sum / countOfDistinctUsers.length).toFixed(
+        2,
+      );
+      // const idArray = avgCal.map((cal) => cal.food_userId);
+      // const users = await User.find({
+      //   where: { id: In(idArray) },
+      // });
 
-      for (const user of users) {
-        user['avgcal'] = userIDtoCal[user.id];
-        delete user.password;
-      }
+      // const userIDtoCal = {};
+      // for (let i = 0; i < avgCal.length; i++) {
+      //   userIDtoCal[avgCal[i].food_userId] = avgCal[i].avg.toFixed(2);
+      // }
+
+      // for (const user of users) {
+      //   user['avgcal'] = userIDtoCal[user.id];
+      //   delete user.password;
+      // }
       return {
-        response: { data: { thisWeekEntries, prevWeekEntries, users } },
+        response: {
+          data: {
+            thisWeekEntries,
+            prevWeekEntries,
+            calsLastWeek,
+            countOfDistinctUsers,
+            avg,
+          },
+        },
       };
     } catch (e) {
       throw new HttpException(e.message, HttpStatus.BAD_REQUEST);

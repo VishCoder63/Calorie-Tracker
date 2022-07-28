@@ -9,7 +9,7 @@ import { Role } from '../../enums/role.enum';
 export class UserService {
   async signIn({ email, password }: { email: string; password: string }) {
     const user = await User.findOne({
-      where: { email },
+      where: { email: email.toLowerCase() },
       select: ['password', 'id', 'email', 'role', 'name'],
     });
     if (!user) throw new NotFoundException('Invalid credentials');
@@ -32,20 +32,19 @@ export class UserService {
 
   async inviteFriend({ email, name }: { email: string; name: string }) {
     try {
-      const isUserInDb = await User.findOne({ where: { email } });
+      const isUserInDb = await User.findOne({
+        where: { email: email.toLowerCase() },
+      });
       if (isUserInDb) throw new Error('Already registered!! Please login');
       const newUser = new User();
       const randWord = faker.lorem.word(6);
       const password = bcrypt.hashSync(randWord, 10);
-      newUser.email = email;
+      newUser.email = email.toLowerCase();
       newUser.password = password;
       newUser.name = name;
       newUser.role = Role.User;
       await User.save(newUser);
-      // const loggedInUser = await this.signIn({
-      //   email: email,
-      //   password: randWord,
-      // });
+
       return { user: { ...newUser, password: randWord } };
     } catch (e) {
       throw new HttpException(e.message, 400);

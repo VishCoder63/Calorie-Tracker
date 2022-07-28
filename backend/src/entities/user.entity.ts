@@ -17,4 +17,10 @@ export class User extends BaseEntity {
 
   @Column()
   role: Role;
+
+  @Column({ default: 1000 })
+  monthlyBudgetLimit: number;
+
+  @Column({ default: 2100 })
+  dailyCalorieLimit: number;
 }
