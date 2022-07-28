@@ -5,7 +5,7 @@ import styles from "../components/styles/foodEntries.module.css";
 
 export const FoodEntriesPage = () => {
   const [dateFilterObject, setDateFilterObject] = useState({});
-  console.log(dateFilterObject);
+//   console.log(dateFilterObject);
   return (
     <>
       <div className={styles["filterContainer"]}>

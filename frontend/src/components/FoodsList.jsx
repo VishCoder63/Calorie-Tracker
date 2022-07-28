@@ -1,4 +1,4 @@
-import { Alert, Button, DatePicker, Form, Input, Popover, Table } from "antd";
+import { Button, DatePicker, Form, Input, Popover, Table } from "antd";
 
 import { useContext, useEffect, useState } from "react";
 import { useCookies } from "react-cookie";
@@ -10,7 +10,8 @@ import moment from "moment";
 import { Role } from "../enums/roles.enum.ts";
 import { MdMoneyOff } from "react-icons/md";
 import { ImWarning } from "react-icons/im";
-import { BsCurrencyDollar } from "react-icons/bs";
+
+import { createFoodSchema, updateFoodSchema } from "../schemas/food.schema";
 
 export const FoodsList = ({ dateFilterObject }) => {
   const [cookies, setCookie, removeCookie] = useCookies(["token", "user"]);
@@ -27,7 +28,7 @@ export const FoodsList = ({ dateFilterObject }) => {
   const columns = [
     {
       key: 1,
-      title: "Food_ID",
+      title: "ID",
       dataIndex: "id",
     },
     {
@@ -98,9 +99,9 @@ export const FoodsList = ({ dateFilterObject }) => {
             <>
               <p>{text}</p>
               {/* <p>{record.dailyTotalCalorie}</p> */}
-              {record.dailyTotalCalorie > 2100 && (
+              {record.dailyTotalCalorie > record.user?.dailyCalorieLimit && (
                 <Popover
-                  content={"Daily Calorie limit crossed 2100!!"}
+                  content={`Daily Calorie limit crossed ${record.user?.dailyCalorieLimit}!!`}
                   color="#fff2c7"
                 >
                   <ImWarning
@@ -136,15 +137,16 @@ export const FoodsList = ({ dateFilterObject }) => {
         } else
           return (
             <>
-              <span>{text}</span>
+              {text}
               <div>
-                {record.monthlyTotalAmount > 1000 && (
+                {record.monthlyTotalAmount >
+                  record.user?.monthlyBudgetLimit && (
                   <Popover
-                    content={"Monthly budget exceeded $1000!!"}
+                    content={`Monthly budget exceeded $${record.user?.monthlyBudgetLimit}!!`}
                     color="#fff2c7"
                   >
                     <MdMoneyOff
-                      size={17}
+                      size={15}
                       color="red"
                       style={{ marginLeft: "5%" }}
                     />
@@ -257,6 +259,7 @@ export const FoodsList = ({ dateFilterObject }) => {
   useEffect(() => {
     getFoods({ page: currentPage, ...dateFilterObject });
   }, [currentPage, dateFilterObject]);
+
   const getFoods = async (filterObj) => {
     try {
       const data = await FoodService.getFoods(
@@ -264,7 +267,7 @@ export const FoodsList = ({ dateFilterObject }) => {
         loggedInUser,
         filterObj
       );
-      console.log(data.data);
+      // console.log(data.data);
       if (data.data.results) {
         const tableSettableData = helper(data.data.results);
         setFoods(tableSettableData);
@@ -290,46 +293,56 @@ export const FoodsList = ({ dateFilterObject }) => {
     }
   };
   const updateFood = async (id, values) => {
-    try {
-      await FoodService.updateFood(id, values, cookies.token);
-      openNotification("Updated successfully!!");
-      getFoods({ page: currentPage, ...dateFilterObject });
-    } catch (e) {
-      openNotification(e.response.data.message);
+    const { error, value } = updateFoodSchema.validate(values);
+    if (error) openNotification(error.message);
+    else {
+      try {
+        await FoodService.updateFood(id, value, cookies.token);
+        openNotification("Updated successfully!!");
+        getFoods({ page: currentPage, ...dateFilterObject });
+        setEditingRow(null);
+      } catch (e) {
+        openNotification(e.response.data.message);
+      }
     }
   };
   const addFood = async (values) => {
     try {
-      await FoodService.addFood(values, cookies.token);
-      openNotification("New Food entry added successfully!!");
-      getFoods({ page: currentPage, ...dateFilterObject });
-      setEditingRow(null);
-      setisCreatingNewRow(!isCreatingNewRow);
+      const { error, value } = createFoodSchema.validate(values);
+      console.log({ error, value });
+      if (error) openNotification(error.message);
+      else {
+        await FoodService.addFood(value, cookies.token);
+        openNotification("New Food entry added successfully!!");
+        getFoods({ page: currentPage, ...dateFilterObject });
+        setEditingRow(null);
+        setisCreatingNewRow(!isCreatingNewRow);
+      }
     } catch (e) {
       openNotification(e.response.data.message);
     }
   };
   const handleOnFinish = async (values) => {
     values = { ...values, datetime: values.datetime.format() };
-    console.log(values, editingRow);
+    // console.log(values, editingRow);
     if (!isCreatingNewRow) {
-      console.log("updated", isCreatingNewRow);
+      // console.log("updated", isCreatingNewRow);
       await updateFood(editingRow, values);
-      setEditingRow(null);
     } else {
-      console.log("creation");
+      // console.log("creation");
       await addFood(values);
     }
   };
   const handleAdd = async () => {
-    setFoods((prev) => {
-      return [{ id: undefined }, ...prev];
-    });
+    const newFoodsArray = [{ id: undefined }, ...foods];
+    // console.log(newFoodsArray);
+    setFoods(newFoodsArray);
     form.setFieldsValue({
       name: "",
       datetime: "",
       calorie: "",
       price: "",
+      email: "",
     });
     setEditingRow(undefined);
     setisCreatingNewRow(true);
@@ -350,12 +363,12 @@ export const FoodsList = ({ dateFilterObject }) => {
       >
         {currentPage === 1 && !isCreatingNewRow && editingRow == null && (
           <Button
-            disabled={dateFilterObject.startDate !== undefined} //cannot add when filters being applied
+            // disabled={dateFilterObject.startDate !== undefined} //cannot add when filters being applied
             type="primary"
             onClick={handleAdd}
             style={{ margin: 10 }}
           >
-            Add a Row
+            Add a Food
           </Button>
         )}
 
@@ -376,8 +389,10 @@ export const FoodsList = ({ dateFilterObject }) => {
 
         <Table
           columns={columns}
+          rowKey={Math.random() * Date.now()}
           dataSource={foods}
           pagination={{
+            disabled: isCreatingNewRow,
             pageSize: limit,
             current: currentPage,
             onChange: (e) => setCurrentPage(e),

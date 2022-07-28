@@ -1,71 +1,49 @@
-import { Card, Col, Row, Table } from "antd";
+import { Card, Col, Row, Statistic, Table } from "antd";
+import { LikeOutlined } from "@ant-design/icons";
+
 import React, { useContext, useEffect, useState } from "react";
 import { useCookies } from "react-cookie";
-import { userContext } from "../contexts/user.context";
+import styles from "../components/styles/statsPage.module.css";
+
 import { FoodService } from "../services/foods.service";
-import { inviteFriend } from "../services/user.service";
 
 export const StatsPage = () => {
   const [cookie, setCookie, removeCookie] = useCookies(["user", "token"]);
-  const { loggedInUser } = useContext(userContext);
+
   const [prevWeekEntries, setPrevWeekEntries] = useState(0);
   const [thisWeekEntries, setThisWeekEntries] = useState(0);
-  const [users, setUsers] = useState([]);
-  const columns = [
-    {
-      key: 1,
-      title: "User_ID",
-      dataIndex: "id",
-    },
-    {
-      key: 2,
-      title: "Name",
-      dataIndex: "name",
-    },
-    {
-      key: 3,
-      title: "Email",
-      dataIndex: "email",
-    },
-    {
-      key: 4,
-      title: "Role",
-      dataIndex: "role",
-    },
-    {
-      key: 5,
-      title: "Average Calories",
-      dataIndex: "avgcal",
-    },
-  ];
+
+  const [average, setAverage] = useState(0);
 
   useEffect(() => {
     getStats();
   }, []);
   const getStats = async () => {
     const { data } = await FoodService.getStats(cookie.token);
-    console.log(data.response.data);
+    // console.log(data.response.data);
 
-    setUsers(data.response.data.users);
+    setAverage(data.response.data.avg);
     setPrevWeekEntries(data.response.data.prevWeekEntries);
     setThisWeekEntries(data.response.data.thisWeekEntries);
   };
 
   return (
-    <div className="site-card-wrapper">
-      <h1 style={{ textAlign: "center", margin: 10 }}>User Statistics</h1>
-      <Card title="Entries this week Vs Entries last week" bordered={true}>
-        <ul>
-          <li>This Week, {thisWeekEntries} entries were registered</li>
-          <li>Last Week, {prevWeekEntries} entries were registered</li>
-        </ul>
-      </Card>
-      <Table
-        columns={columns}
-        dataSource={users}
-        style={{ margin: "2rem" }}
-        pagination={{ pageSize: 5 }}
-      ></Table>
+    <div style={{ maxWidth: "60%", margin: "auto", textAlign: "center" }}>
+      <h1 style={{ textAlign: "center", margin: "3rem" }}>User Statistics</h1>
+      <Row gutter={16}>
+        <Col span={12}>
+          <Statistic title="Entries last week" value={prevWeekEntries} />
+        </Col>
+        <Col span={12}>
+          <Statistic title="Entries this week" value={thisWeekEntries} />
+        </Col>
+        <Col span={12}>
+          <Statistic
+            title="Average calorie intake per user last week"
+            value={`${average} calorie`}
+          />
+        </Col>
+      </Row>
     </div>
   );
 };

@@ -7,24 +7,25 @@ const { RangePicker } = DatePicker;
 export const Filter = ({ setDateFilterObject }) => {
   const [filterDate, setFilterDate] = useState({});
   const [isdateRangeSelected, setIsDateRangeSelected] = useState(false);
-  const [canBeCleared, setCanBeCleared] = useState(false);
+  const [filterEmpty, setFilterEmpty] = useState(true);
 
   const onRangeChange = (dateString) => {
-    console.log("called", dateString);
+    // console.log("called", dateString);
+
     if (dateString) {
       setFilterDate({
         startDate: dateString[0].format("YYYY-MM-DD HH:mm:ss"),
         endDate: dateString[1].format("YYYY-MM-DD HH:mm:ss"),
       });
-      setIsDateRangeSelected((prev) => !prev);
+      setFilterEmpty(false);
     } else {
       setDateFilterObject({});
-      setCanBeCleared((prev) => !prev);
+      setFilterEmpty(true);
     }
   };
   const handleApply = () => {
     setDateFilterObject(filterDate);
-    setCanBeCleared((prev) => !prev);
+    setFilterEmpty(true);
   };
   return (
     <>
@@ -36,12 +37,12 @@ export const Filter = ({ setDateFilterObject }) => {
         onChange={onRangeChange}
       />
       <Button
-        disabled={canBeCleared}
+        disabled={filterEmpty}
         type="primary"
         onClick={handleApply}
         style={{ margin: 10 }}
       >
-        {!canBeCleared ? "Apply Filter" : `Clear Filter manually`}
+        Apply Filter
       </Button>
     </>
   );

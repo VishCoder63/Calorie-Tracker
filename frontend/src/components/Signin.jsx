@@ -1,49 +1,38 @@
 import { Button, Form, Input } from "antd";
 import React, { useContext } from "react";
 import { useNavigate } from "react-router-dom";
-import { toast } from "react-toastify";
+
 import { userContext } from "../contexts/user.context";
 import { loginService } from "../services/user.service";
 import styles from "./styles/signin.module.css";
 import { useCookies } from "react-cookie";
 import { openNotification } from "../utils/antNotification";
+import { signInSchema } from "../schemas/user.schema";
 
 const Signin = () => {
   const navigate = useNavigate();
   const { loggedInUser, setLoggedInUser } = useContext(userContext);
   const [cookies, setCookie, removeCookie] = useCookies(["token", "user"]);
   const onFinish = async (values) => {
-    await loginService({ email: values.username, password: values.password })
-      .then((res) => {
-        const { token, ...user } = res.data;
-        setLoggedInUser(user);
-
-        setCookie("user", user);
-        setCookie("token", token);
-
-        openNotification("Logged in successfully!");
-        navigate("/");
-      })
-      .catch((err) => {
-        console.log(err);
-        openNotification(err.response?.data?.message);
-      });
-  };
-
-  const onFinishFailed = ({ errorFields }) => {
-    // toast("hi there");
-    // errorFields.map((err) =>
-    //   toast.error(err.errors[0], {
-    //     position: "top-right",
-    //     autoClose: 3000,
-    //     hideProgressBar: false,
-    //     closeOnClick: true,
-    //     pauseOnHover: true,
-    //     draggable: true,
-    //     progress: undefined,
-    //   })
-    // );
-    console.log("Failed:", errorFields);
+    const { value, error } = signInSchema.validate({
+      email: values.username,
+      password: values.password,
+    });
+    if (error) openNotification(error.message);
+    else {
+      await loginService({ email: value.email, password: value.password })
+        .then((res) => {
+          const { token, ...user } = res.data;
+          setLoggedInUser(user);
+          setCookie("user", user);
+          setCookie("token", token);
+          openNotification("Logged in successfully!");
+          navigate("/");
+        })
+        .catch((err) => {
+          openNotification(err.response?.data?.message);
+        });
+    }
   };
 
   return (
@@ -60,7 +49,6 @@ const Signin = () => {
           remember: true,
         }}
         onFinish={onFinish}
-        onFinishFailed={onFinishFailed}
         autoComplete="off"
       >
         <h1>Signin</h1>

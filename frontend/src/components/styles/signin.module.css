@@ -1,15 +1,14 @@
 .mainClass {
   border: 1px solid rgb(195, 190, 190);
+  min-width: 20rem;
   width: 30%;
-  /* height: 50vh; */
-  padding-left: 5rem;
-  padding-top: 3.5rem;
-  margin: 5rem auto;
+  text-align: left;
+  padding-left: 6%;
+  padding-top: 2%;
+  margin: 4rem auto;
   box-shadow: rgba(0.1, 0.1, 0.1, 0.24) 0px 3px 8px;
 }
 
 .submitButton {
   margin-right: 1rem;
 }
-
-

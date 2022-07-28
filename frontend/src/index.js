@@ -5,8 +5,6 @@ import App from "./App";
 import reportWebVitals from "./reportWebVitals";
 import "antd/dist/antd.css";
 import { BrowserRouter } from "react-router-dom";
-import { RoutesMain } from "./routes/RoutesMain";
-import { DateTimePicker } from "./components/Filter";
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
